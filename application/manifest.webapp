@@ -1,5 +1,5 @@
 {
-  "version": "0.1.1.32",
+  "version": "0.1.1.52",
   "name": "flop",
   "id": "flop",
   "description": "Flop P2P Messenger is a decentralized messaging application that facilitates direct communication between users without relying on central servers. The app supports the exchange of text messages, audio messages, and location sharing, making it a versatile tool for staying connected. By using peer-to-peer (P2P) technology, Flop ensures that messages are transmitted directly between users, offering a seamless and reliable communication experience.",
@@ -20,7 +20,7 @@
 
   "developer": {
     "name": "strukturart",
-    "url": "https://github.com/strukturart/flop"
+    "url": "https://github.com/strukturart/flop-k2"
   },
   "dependencies": {
     "ads-sdk": "1.5.8"
@@ -37,7 +37,9 @@
     {
       "notification": "/index.html"
     },
-    { "activity": "/index.html" }
+    { "activity": "/index.html" },
+    { "serviceworker-notification": "/index.html" }
+
   ],
 
   "activities": {
@@ -47,10 +49,11 @@
   },
 
   "serviceworker": {
-    "script_url": "service-worker.js"
+    "script_url": "/sw.js"
   },
 
   "permissions": {
+    "push":{},
     "audio-capture": {},
 
     "serviceworker": {
