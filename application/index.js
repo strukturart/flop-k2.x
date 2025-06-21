@@ -323,8 +323,9 @@ function setupConnectionEvents(conn) {
   connectedPeers.push(conn.peer);
   let pc = conn.peerConnection;
 
-  pc.addEventListener("iceconnectionstatechange", () => {
-    console.log(pc.iceConnectionState);
+  //KaiOS 2.x old listener method
+  pc.oniceconnectionstatechange = function () {
+    console.log("ICE state:", pc.iceConnectionState);
     switch (pc.iceConnectionState) {
       case "disconnected":
       case "failed":
@@ -346,7 +347,7 @@ function setupConnectionEvents(conn) {
         try {
           messageQueue();
           if (messageQueueStorage.length > 0) {
-            // console.log("should send to " + conn.peer);
+            console.log("should send to " + conn.peer);
 
             messageQueueStorage.map((e) => {
               if (e.to == conn.peer && e.type != "typing") {
@@ -354,7 +355,9 @@ function setupConnectionEvents(conn) {
               }
             });
           }
-        } catch (e) {}
+        } catch (e) {
+          console.log(e);
+        }
 
         /*
         Users can change their peer ID to avoid losing their connection, 
@@ -401,7 +404,7 @@ function setupConnectionEvents(conn) {
 
         break;
     }
-  });
+  };
 
   //receive data
   conn.on("data", function (data) {
@@ -1428,6 +1431,19 @@ let peer_is_online = async function () {
       if (connectedPeers.includes(entry.id)) {
         entry.live = true;
         console.log("allready connected");
+
+        try {
+          messageQueue();
+          if (messageQueueStorage.length > 0) {
+            messageQueueStorage.map((e) => {
+              if (e.to == entry.id && e.type != "typing") {
+                sendMessageToAll(e);
+              }
+            });
+          }
+        } catch (e) {
+          console.log(e);
+        }
         m.redraw();
         continue;
       }
@@ -1454,7 +1470,6 @@ let peer_is_online = async function () {
 
           tempConn.on("error", (e) => {
             console.log(e);
-
             entry.live = false;
             m.redraw();
           });
@@ -1558,8 +1573,6 @@ let connect_to_peer = function (
             // Fallback in case 'open' or 'error' events are not triggered
             setTimeout(() => {
               if (!conn.open) {
-                console.log("can't connect");
-
                 side_toaster("Connection timeout", 3000);
               }
             }, 6000);
