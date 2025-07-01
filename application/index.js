@@ -201,29 +201,31 @@ setTimeout(() => {
 //listener
 let test_is_user_online = () => {
   setInterval(() => {
+    console.log(peer._open);
+    if (!peer._open) {
+      getIceServers();
+    }
     const now = Date.now();
-    addressbook.forEach((e) => {
-      e.live = false;
 
+    addressbook.forEach((e) => {
       sendMessage("", "ping", "", e.id, undefined);
 
-      console.log("send");
-      if (!e.lastPing) {
+      // Wenn wir seit >15s nichts von ihm gehört haben → offline
+      if (!e.lastPing || now - e.lastPing > 15000) {
         e.live = false;
-        e.lastPing = now;
-      }
-      if (e.lastPing && now - e.lastPing > 15000) {
-        e.live = false;
+        console.log("peer is offline", now - e.lastPing);
         connectedPeers = connectedPeers.filter((c) => c !== e.id);
       } else {
         e.live = true;
-        if (connectedPeers.indexOf(e.id) == -1)
-          connectedPeers = connectedPeers.push(e.id);
+        console.log("peer is online");
+
+        if (!connectedPeers.includes(e.id)) {
+          connectedPeers.push(e.id);
+        }
       }
     });
 
-    let r = m.route.get();
-    if (r.startsWith("/start")) {
+    if (m.route.get().startsWith("/start")) {
       m.redraw();
     }
   }, 10000);
@@ -433,7 +435,7 @@ function setupConnectionEvents(conn) {
     try {
       if (data.type === "ping") {
         const now = Date.now();
-        if (now - status.lastPingSentAt >= 30000) {
+        if (now - status.lastPingSentAt >= 10000) {
           // 30 Sekunden
           sendMessage("", "ping", "", data.from, undefined);
           status.lastPingSentAt = now;
@@ -472,7 +474,7 @@ function setupConnectionEvents(conn) {
     //
     try {
       let clientID = JSON.parse(conn.metadata);
-      clientID = clientID.unique_id;
+      clientID = clientID.unique_id || "";
 
       addressbook.forEach((e) => {
         if (e.id == data.from) {
@@ -504,6 +506,8 @@ function setupConnectionEvents(conn) {
 
         storeChatData().then(() => {
           m.redraw();
+
+          if (connectedPeers.indexOf(e.id) == -1) connectedPeers.push(e.id);
         });
       }
       //delete message from messageQueue
@@ -798,7 +802,6 @@ async function getIceServers() {
       debug: 1,
       secure: false,
       config: ice_servers,
-      referrerPolicy: "no-referrer",
     });
 
     //disconnected from server try to reconnect
@@ -1445,7 +1448,6 @@ let peer_is_online = async function () {
       if (!entry.id || entry.id == "") continue;
 
       //when peer has connected
-      console.log(connectedPeers);
       if (connectedPeers.length > 0 && connectedPeers.indexOf(entry.id) > -1) {
         entry.live = true;
         console.log("allready connected");
@@ -1859,6 +1861,7 @@ var AudioComponent = {
 
 //callback geolocation
 let geolocation_callback = function (e) {
+  console.log(e);
   if (
     status.geolocation_autoupdate == false &&
     status.geolocation_onTimeRequest == true
@@ -2640,25 +2643,19 @@ var settings_page = {
               localforage
                 .getItem("history_of_ids")
                 .then((e) => {
-                  // Sicherstellen, dass es ein Array ist
                   status.history_of_ids = Array.isArray(e) ? e : [];
 
-                  // Neue ID generieren
                   const newId = "flop-" + uuidv4(16);
 
-                  // ID ins Array hinzufügen
                   status.history_of_ids.push(newId);
 
-                  // In localForage speichern
                   return localforage
                     .setItem("history_of_ids", status.history_of_ids)
                     .then(() => newId);
                 })
                 .then((newId) => {
-                  // Neue ID in settings speichern
                   settings.custom_peer_id = newId;
 
-                  // Mithril neu rendern
                   m.redraw();
                 })
                 .catch(() => {
@@ -2972,16 +2969,11 @@ var options = {
             onfocus: () => {
               bottom_bar("", "", "");
             },
-            style: { display: status.userOnline ? "" : "none" },
 
             onclick: function () {
-              if (status.userOnline) {
-                geolocation(geolocation_callback);
-                status.geolocation_onTimeRequest = true;
-                m.route.set("/chat?id=" + settings.custom_peer);
-              } else {
-                side_toaster("no user online", 3000);
-              }
+              geolocation(geolocation_callback);
+              status.geolocation_onTimeRequest = true;
+              history.back();
             },
           },
           "share location"
@@ -3018,10 +3010,9 @@ var options = {
                   geolocation(geolocation_callback);
                   status.geolocation_autoupdate = true;
                   status.geolocation_autoupdate_id = uuidv4(16);
-                  m.route.set("/chat?id=" + settings.custom_peer);
+                  history.back();
                 }
               } else {
-                side_toaster("no user online", 3000);
               }
             },
           },
@@ -3559,7 +3550,7 @@ var chat = {
             } else {
               console.log("user check not possible");
             }
-          }, 2000);
+          }, 5000);
         },
       },
 
@@ -4342,7 +4333,6 @@ document.addEventListener("DOMContentLoaded", function (e) {
             status.userOnline == 0 &&
             !connectedPeers.includes(status.current_user_id)
           ) {
-            side_toaster("The user is not online.", 3000);
           }
         }
 

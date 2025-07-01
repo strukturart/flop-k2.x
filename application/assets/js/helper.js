@@ -100,6 +100,7 @@ export const geolocation = function (callback) {
   };
 
   let error = function (error) {
+    console.log(error);
     if (n) {
       n.style.transform = "translate(-100vw,0px)";
       n.innerHTML = "";
