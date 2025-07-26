@@ -75,37 +75,20 @@ if (window.NodeList && !NodeList.prototype.forEach) {
 }
 
 export const geolocation = function (callback) {
-  let n = document.getElementById("side-toast");
-  if (n) {
-    n.style.transform = "translate(0vw,0px)";
-    n.innerHTML = "Determining position...";
-  }
-
   let lastCallbackTime = 0;
 
   let showPosition = function (position) {
-    console.log(position);
     const now = Date.now();
 
     // Only proceed if 20 seconds have passed since the last callback
     if (now - lastCallbackTime >= 20000) {
       lastCallbackTime = now;
       callback(position);
-
-      if (n) {
-        n.style.transform = "translate(-100vw,0px)";
-        n.innerHTML = "";
-      }
     }
   };
 
   let error = function (error) {
-    console.log(error);
-    if (n) {
-      n.style.transform = "translate(-100vw,0px)";
-      n.innerHTML = "";
-    }
-
+    callback("error");
     switch (error.code) {
       case error.PERMISSION_DENIED:
         //side_toaster("Location not provided", 5000);
@@ -125,7 +108,7 @@ export const geolocation = function (callback) {
   // Use watchPosition to continuously monitor location
   const watchID = navigator.geolocation.watchPosition(showPosition, error, {
     enableHighAccuracy: true,
-    timeout: 20000,
+    timeout: 10000,
     maximumAge: 1000,
   });
 };
@@ -623,7 +606,7 @@ export let pick_image = function (callback) {
   const compressImage = (fileOrBlob, filename, filetype) => {
     const options = {
       maxSizeMB: 1,
-      maxWidthOrHeight: 640,
+      maxWidthOrHeight: status.maxImageSize,
       useWebWorker: false,
     };
 
@@ -637,11 +620,14 @@ export let pick_image = function (callback) {
       })
       .catch((error) => {
         console.log("Image compression failed:", error);
+
+        /*
         callback({
           blob: fileOrBlob,
           filename: filename || null,
           filetype: filetype || "image/jpeg",
         });
+        */
       });
   };
 
@@ -667,7 +653,6 @@ export let pick_image = function (callback) {
       console.log(e);
     }
 
-    // fallback für WebActivity
     if ("b2g" in navigator) {
       let pick = new WebActivity("pick", {
         type: "image/*",
@@ -688,20 +673,24 @@ export let pick_image = function (callback) {
   }
 
   // Desktop / Android Browser
-  const fileInput = document.createElement("input");
-  fileInput.type = "file";
-  fileInput.accept = "image/*";
-  fileInput.style.display = "none";
-  document.body.appendChild(fileInput);
+  if (status.notKaiOS) {
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.style.display = "none";
+    document.body.appendChild(fileInput);
 
-  fileInput.click();
+    fileInput.click();
 
-  fileInput.addEventListener("change", function (event) {
-    const file = event.target.files[0];
-    if (file) {
-      compressImage(file, file.name, file.type);
-    }
-  });
+    fileInput.addEventListener("change", function (event) {
+      const file = event.target.files[0];
+      if (file) {
+        compressImage(file, file.name, file.type);
+      }
+
+      fileInput.remove();
+    });
+  }
 };
 
 // Pick JSON file
